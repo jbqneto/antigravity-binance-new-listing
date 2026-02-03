@@ -12,7 +12,7 @@ Scrape the latest cryptocurrency listing announcements from Binance and extract 
 ## Process
 1.  Run the Python scraper script.
 2.  The script navigates to the Binance announcement page.
-3.  It filters announcements for the current and previous day (UTC).
+3.  It filters announcements for the **current day** (UTC).
 4.  It extracts details including contract addresses (if matching hex patterns are found).
 
 ## Output
@@ -51,6 +51,18 @@ To run this scraper in a Docker container:
     docker run --rm -v $(pwd)/.tmp:/app/.tmp binance-scraper
     ```
 
+## Docker Compose / Portainer service
+To deploy using `docker-compose` (compatible with Portainer stacks):
+
+1.  **Up**:
+    ```bash
+    docker-compose up -d
+    ```
+
+2.  **Access API**:
+    - Health check: `http://localhost:8000/health`
+    - Trigger Scrape: `POST http://localhost:8000/scrape`
+
 ## Edge Cases / Notes
 - **WAF/Bot Protection**: The script uses a manual `navigator.webdriver` override to bypass "Human Verification".
-- **Empty Results**: If no announcements match today/yesterday, the output array will be empty.
+- **Empty Results**: If no announcements match today, the output array will be empty.

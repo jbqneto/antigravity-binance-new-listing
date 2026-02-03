@@ -35,9 +35,9 @@ async def scrape():
         # Get today and yesterday dates (UTC)
         now = datetime.utcnow()
         today_str = now.strftime("%Y-%m-%d")
-        from datetime import timedelta
-        yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-        target_dates = [today_str, yesterday_str]
+        
+        # Filter only for today's announcements
+        target_dates = [today_str]
 
         for link in links:
             # Get text and href
@@ -86,24 +86,46 @@ async def scrape():
                     context_start = max(0, start_pos - 150)
                     context_text = text_content[context_start:start_pos]
                     
-                    network = "Unknown"
-                    if re.search(r"Ethereum|ERC20|ETH|ERC-20", context_text, re.IGNORECASE):
-                        network = "Ethereum"
-                    elif re.search(r"BNB Smart Chain|BEP20|BSC|BEP-20", context_text, re.IGNORECASE):
-                        network = "BNB Smart Chain"
-                    elif re.search(r"Arbitrum|ARB", context_text, re.IGNORECASE):
-                        network = "Arbitrum"
-                    elif re.search(r"Polygon|MATIC", context_text, re.IGNORECASE):
-                        network = "Polygon"
-                    elif re.search(r"Optimism|OP", context_text, re.IGNORECASE):
-                        network = "Optimism"
-                    elif re.search(r"Base", context_text, re.IGNORECASE):
-                        network = "Base"
-                    elif re.search(r"Ronin|RON", context_text, re.IGNORECASE):
-                        network = "Ronin"
-                        
-                    if network != "Unknown" or address not in contracts.values():
-                         contracts[network] = address
+                    # Context analysis to find strictly the CLOSEST network label
+                    
+                    # Define network patterns map
+                    network_patterns = {
+                        "Ethereum": r"Ethereum|ERC20|ETH|ERC-20",
+                        "BNB Smart Chain": r"BNB Smart Chain|BEP20|BSC|BEP-20",
+                        "Arbitrum": r"Arbitrum|ARB",
+                        "Polygon": r"Polygon|MATIC",
+                        "Optimism": r"Optimism|OP",
+                        "Base": r"Base",
+                        "Ronin": r"Ronin|RON",
+                        "Solana": r"Solana|SOL"
+                    }
+                    
+                    detected_network = "Unknown"
+                    closest_match_pos = -1
+                    
+                    for net_name, pattern in network_patterns.items():
+                        # Find all matches of this network pattern in the context
+                        for match in re.finditer(pattern, context_text, re.IGNORECASE):
+                            if match.start() > closest_match_pos:
+                                closest_match_pos = match.start()
+                                detected_network = net_name
+                    
+                    # Only add if we found a network or strictly new address
+                    # If we detected a network, verify we don't overwrite with Unknown unless necessary (but here we default to Unknown and only update if found)
+                    
+                    if detected_network != "Unknown":
+                         contracts[detected_network] = address
+                    elif address not in contracts.values():
+                         # If unknown network, maybe append with a generic key or just skip if we want to be strict?
+                         # Let's add it as "Unknown" or "Unknown_1", "Unknown_2" etc if we want to keep it.
+                         # For now, following logic of 'contracts' dict, we can't have duplicate keys.
+                         # Let's just key it by address if unknown? No, requirement is Network: Address.
+                         # If unknown, maybe "Contract": address
+                         if "Unknown" not in contracts:
+                             contracts["Unknown"] = address
+                         else:
+                             # Append? or just ignore secondary unknown?
+                             pass
 
                 clean_title = item['title'].replace(item['date'], "").strip()
                 
